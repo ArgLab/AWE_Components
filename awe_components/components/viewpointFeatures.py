@@ -1674,7 +1674,7 @@ class ViewpointFeatureDef:
                             speaker_refs.append(descendant.i)
                     if descendant.lower_ in second_person_pronouns \
                        or (descendant.dep_ == 'vocative'
-                           and descendent.pos_ == 'NOUN'):
+                           and descendant.pos_ == 'NOUN'):
                         descendant._.vwp_addressee_ = lastRoot._.vwp_addressee_
                         if descendant.i not in addressee_refs:
                             addressee_refs.append(descendant.i)

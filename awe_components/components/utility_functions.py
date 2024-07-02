@@ -3155,7 +3155,7 @@ def applyTokenTransformations(entry, token, transformations):
             entry['name'] = 'text_' + entry['name']                  
 
         elif transformation == 'lower':
-            entry['value'] = gettr(token, 'lower_').strip()
+            entry['value'] = getattr(token, 'lower_').strip()
             entry['name'] = 'lower_' + entry['name']                  
 
         elif transformation == 'root':
