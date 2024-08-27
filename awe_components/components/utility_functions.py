@@ -3381,8 +3381,7 @@ def AWE_Info(document: Doc,
         baseInfo = []
         # security check
         if not re.match('[A-Za-z0-9_]+', indicator):
-            raise AWE_Workbench_Error(
-                'Invalid indicator ' + indicator)                   
+            raise AWE_Workbench_Error('Invalid indicator ' + indicator)
 
         if infoType == 'Doc':
             baseInfo = createSpanInfo(indicator,
