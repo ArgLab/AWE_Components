@@ -24,6 +24,15 @@ from awe_components.wordprobs.wordseqProbClient import *
 
 logging.basicConfig(level="DEBUG")
 
+COMPARERS = {
+    "==": lambda x, y: x==y,
+    "<": lambda x, y: x<y,
+    ">": lambda x, y: x>y,
+    "<=": lambda x, y: x<=y,
+    ">=": lambda x, y: x>=y,
+    "!=": lambda x, y: x!=y
+}
+
 
 class FType(Enum):
     """
@@ -2809,30 +2818,31 @@ built_in_flags = ['is_alpha',
                   'is_oov',
                   'is_stop']
 
-docspan_extensions = ['sentence_types', 
-                      'transition_distances',
-                      'intersentence_cohesions',
-                      'sliding_window_cohesions',
-                      'corefChainInfo',
-                      'sentenceThemes',
-                      'transitions',
-                      'syntacticDepthsOfThemes',
-                      'syntacticDepthsOfRhemes',
-                      'main_cluster_spans',
-                      'vwp_statements_of_opinion',
-                      'vwp_emotion_states',
-                      'vwp_character_traits',
-                      'vwp_statements_of_fact',
-                      'vwp_direct_speech',
-                      'vwp_social_awareness',
-                      'vwp_perspective_spans',
-                      'vwp_stance_markers',
-                      'vwp_propositional_attitudes',
-                      'main_ideas',
-                      'supporting_ideas',
-                      'supporting_details',
-                      'all_cluster_info'
-                      ]
+docspan_extensions = [
+    'sentence_types', 
+    'transition_distances',
+    'intersentence_cohesions',
+    'sliding_window_cohesions',
+    'corefChainInfo',
+    'sentenceThemes',
+    'transitions',
+    'syntacticDepthsOfThemes',
+    'syntacticDepthsOfRhemes',
+    'main_cluster_spans',
+    'vwp_statements_of_opinion',
+    'vwp_emotion_states',
+    'vwp_character_traits',
+    'vwp_statements_of_fact',
+    'vwp_direct_speech',
+    'vwp_social_awareness',
+    'vwp_perspective_spans',
+    'vwp_stance_markers',
+    'vwp_propositional_attitudes',
+    'main_ideas',
+    'supporting_ideas',
+    'supporting_details',
+    'all_cluster_info'
+]
 
 summary_functions = ['vwp_egocentric',
                      'vwp_allocentric',
@@ -2841,36 +2851,34 @@ summary_functions = ['vwp_egocentric',
                     ]
 def newSpanEntry(name, left, right, hdoc, value):
     '''
-        Create an entry in the format used for span indicator
-        values by the AWE_Information function. The offset and
-        length attributes support finding the exact span in
-        the input text. The startToken and endToken attributes
-        support finding the correct tokens in the Spacy parse
-        tree. The value field contains whatever data we want
-        to associate with the span, which depends on the
-        specific indicator.
+    Create an entry in the format used for span indicator
+    values by the AWE_Information function. The offset and
+    length attributes support finding the exact span in
+    the input text. The startToken and endToken attributes
+    support finding the correct tokens in the Spacy parse
+    tree. The value field contains whatever data we want
+    to associate with the span, which depends on the
+    specific indicator.
     '''
-    entry = {}
-    entry['name'] = name
-    entry['offset'] = hdoc[left].idx
-    entry['startToken'] = left
-    entry['endToken'] = right
-    entry['length'] = hdoc[right].idx \
-        + len(hdoc[right].text_with_ws) \
-        - hdoc[left].idx
-    entry['value'] = value
-    entry['text'] = hdoc[left:right+1].text
-    return entry
+    return {
+        "name": name,
+        "offset": hdoc[left].idx,
+        "startToken": left,
+        "endToken": right,
+        "length": len(hdoc[right].text_with_ws) + hdoc[right].idx - hdoc[left].idx,
+        "value": value,
+        "text": hdoc[left:right+1].text,
+    }
 
 def newTokenEntry(name, token):
-    entry = {}
-    entry['text'] = token.text_with_ws
-    entry['offset'] = token.idx
-    entry['tokenIdx'] = token.i
-    entry['length'] = len(token.text_with_ws)
-    entry['name'] = name
-    entry['value'] = None
-    return entry
+    return {
+        "text": token.text_with_ws,
+        "offset": token.idx,
+        "tokenIdx": token.i,
+        "length": len(token.text_with_ws),
+        "name": name,
+        "value": None
+    }
     
 def setTokenEntry(name, token, value):
     '''
@@ -2911,20 +2919,15 @@ def setTokenEntry(name, token, value):
 
 def createSpanInfo(indicator, document):
     '''
-        Create records for span data in the format used
-        by the AWE_Info function
+    Create records for span data in the format used
+    by the AWE_Info function
     '''
     baseInfo = []
     entry = {}
     # Create span records for sentence spans
     if indicator == 'sents':
         for sent in document.sents:
-            entry = \
-                newSpanEntry('sents',
-                    sent.start,
-                    sent.end-1,
-                    document,
-                    'sentence')
+            entry = newSpanEntry('sents', sent.start, sent.end-1, document, 'sentence')
             baseInfo.append(entry)
 
     # Create span records for other kinds of spans
@@ -2944,58 +2947,40 @@ def createSpanInfo(indicator, document):
         for token in document:
             currentEnd = token.i
             if delimiter in token.text:
-                entry = \
-                    newSpanEntry(indicator,
-                        currentStart,
-                        currentEnd-1,
-                        document,
-                        delimiter)
+                entry = newSpanEntry(indicator, currentStart, currentEnd-1, document, delimiter)
                 baseInfo.append(entry)
                 currentStart = token.i
                 segmentNo += 1
         if currentEnd > currentStart:
-            entry = \
-                newSpanEntry(indicator,
-                    currentStart,
-                    token.i,
-                    document,
-                    segmentNo)                    
+            entry = newSpanEntry(indicator, currentStart, token.i, document, segmentNo)
             baseInfo.append(entry)
     else:
-        raise AWE_Workbench_Error(
-            'Invalid indicator '
-            + indicator)
-
+        raise AWE_Workbench_Error('Invalid indicator ' + indicator)
     return baseInfo
 
-def applySpanFilters(token, entry, filters):
+def checkSpanFilters(entry, filters):
     '''
-        Given an entry in the format used to describe
-        indicator values for spans by the AWE_Info function,
-        check if that entry passes the specified filters.
+    Given an entry in the format used to describe
+    indicator values for spans by the AWE_Info function,
+    check if that entry passes the specified filters.
+
+    Precondition: filters must be a list with len > 0
     '''
-    filterEntry = False
     for (function, returnValues) in filters:
-        if type(filters) == list and len(filters)>0:
-            for (function, returnValues) in filters:
-                for returnValue in returnValues:
-                    comparers = {
-                        "==": lambda x, y: x==y,
-                        "<": lambda x, y: x<y,
-                        ">": lambda x, y: x>y,
-                        "<=": lambda x, y: x<=y,
-                        ">=": lambda x, y: x>=y,
-                        "!=": lambda x, y: x!=y
-                    }
-                    # Direct comparison with the returnValue
-                    if function in comparers and entry['value'] is None:
-                        return True
-                    if function in comparers \
-                       and type(entry['value']) \
-                          in [int, float, str]:
-                        if not comparers[function](entry['value'], returnValue):
-                            return True
-    return False
+        for returnValue in returnValues:
+            # We are fishing for error: bad function
+            if function not in COMPARERS:
+                return False
+            # We are fishing for error: None value
+            if entry['value'] is None:
+                return False
+            # We are fishing for error: bad function evaluation
+            if type(entry['value']) in [int, float, str]:
+                if not COMPARERS[function](entry['value'], returnValue):
+                    return False
+                
+    # If we didn't bump into an error for all filters, return True
+    return True
 
 def applyTokenFilters(token, entry, filters):
     '''
@@ -3384,24 +3369,15 @@ def AWE_Info(document: Doc,
             raise AWE_Workbench_Error('Invalid indicator ' + indicator)
 
         if infoType == 'Doc':
-            baseInfo = createSpanInfo(indicator,
-                                      document)
+            baseInfo = createSpanInfo(indicator, document)
             newInfo = []
-            filterEntry = False
             if baseInfo is not None:
                 for entry in baseInfo:
-                    if type(filters) == list and len(filters)>0:
-                        filterEntry = applySpanFilters(document[entry['startToken']],
-                                                                entry,
-                                                                filters)
-                    elif filters != []:
-                        raise AWE_Workbench_Error('Invalid filter '
-                            + str(filters))                   
-                    if filterEntry:
-                        continue
-                    newInfo.append(entry)
-                baseInfo = applySpanTransformations(transformations,
-                                                newInfo)
+                    if type(filters) != list or not filters:
+                        raise AWE_Workbench_Error('Invalid filter ' + str(filters)) 
+                    if checkSpanFilters(entry, filters):
+                        newInfo.append(entry)
+                baseInfo = applySpanTransformations(transformations, newInfo)
         elif infoType == 'Token' \
            and indicator in summary_functions:
             baseInfo = getattr(document._, indicator)
@@ -3410,49 +3386,33 @@ def AWE_Info(document: Doc,
             if baseInfo is not None:
                 for entry in baseInfo:
                     if type(filters) == list and len(filters)>0:
-                        filterEntry = applyTokenFilters(document[entry['tokenIdx']],
-                                                        entry,
-                                                        filters)
+                        filterEntry = applyTokenFilters(document[entry['tokenIdx']], entry, filters)
                     elif filters != []:
                         raise AWE_Workbench_Error('Invalid filter '
                             + str(filters))                   
                     if filterEntry:
                         continue
-                    entry = \
-                        applyTokenTransformations(entry,
-                                                  document[entry['tokenIdx']],
-                                                  transformations)
+                    entry = applyTokenTransformations(entry, document[entry['tokenIdx']], transformations)
                     newInfo.append(entry)
                 baseInfo = newInfo
 
         elif infoType == 'Token':
             for token in document:
                 entry = setTokenEntry(indicator, token, None)
-
                 filterEntry = False
                 if type(filters) == list and len(filters)>0:
-                    filterEntry = applyTokenFilters(token,
-                                                    entry,
-                                                    filters)
+                    filterEntry = applyTokenFilters(token, entry, filters)
                 elif filters != []:
-                    raise AWE_Workbench_Error('Invalid filter '
-                        + str(filters))                   
+                    raise AWE_Workbench_Error('Invalid filter ' + str(filters))                   
                 if filterEntry:
                     continue
                 else:
-                    entry = \
-                        applyTokenTransformations(entry,
-                                                  token,
-                                                  transformations)
+                    entry = applyTokenTransformations(entry, token, transformations)
                     baseInfo.append(entry)
         else:
-            raise AWE_Workbench_Error('Invalid indicator type '
-                + infoType)                   
+            raise AWE_Workbench_Error('Invalid indicator type ' + infoType)                   
         info = pd.DataFrame.from_dict(baseInfo)
-        return applySummaryFunction(info,
-                                    baseInfo,
-                                    summaryType,
-                                    document)
+        return applySummaryFunction(info, baseInfo, summaryType, document)
 
     except Exception as e:
             print(e)
