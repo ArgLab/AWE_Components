@@ -9,7 +9,7 @@ information about features of student writing.
 Before You Install
 ------------
 
-It is helpful to note that the use of AWE Components is best tested using [AWE_Workbench](https://github.com/ArgLab/AWE_Workbench), which utilizes the features defined in AWE Components. There are a series of automatic tests which can be run to verify or validate AWE Components; in addition, there are examples, a web server for parsing documents, and an interactive document highlighting tool for visualizing the document features which are derived from AWE Components.
+It is helpful to note that the use of AWE Components is best tested using [AWE_Workbench](https://github.com/ETS-Next-Gen/AWE_Workbench), which utilizes the features defined in AWE Components. There are a series of automatic tests which can be run to verify or validate AWE Components; in addition, there are examples, a web server for parsing documents, and an interactive document highlighting tool for visualizing the document features which are derived from AWE Components.
 
 See AWE Workbench's installations steps and verify that you'd want to use it instead of installing AWE Components directly.
 
